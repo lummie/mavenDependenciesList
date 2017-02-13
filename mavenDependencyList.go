@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"mavenDependencyList/util"
 	"runtime"
+	"strings"
+	"sort"
 )
 
 
@@ -44,10 +46,41 @@ func PomScanner(rootDir string, quit chan bool) error{
 }
 
 
+// sort
 
 
 // channel to receive poms on
 var poms chan *util.Pom = make(chan *util.Pom)
+
+
+type pomInfo []*util.Pom
+
+
+// sort for artifacts
+type ByArtifact pomInfo
+func (s ByArtifact) Len() int {
+	return len(s)
+}
+func (s ByArtifact) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+func (s ByArtifact) Less(i, j int) bool {
+	return strings.Compare(s[i].ArtifactId,s[j].ArtifactId) == -1
+}
+
+//sort for dependencies
+type ByDependency []util.Dependency
+func (s ByDependency) Len() int {
+	return len(s)
+}
+func (s ByDependency) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+func (s ByDependency) Less(i, j int) bool {
+	return strings.Compare(s[i].GroupId,s[j].GroupId) == -1
+}
+
+
 
 // main
 func main() {
@@ -79,9 +112,23 @@ func main() {
 
 	}
 
+	sort.Sort(ByArtifact(results))
 
-	for _, dep := range results {
-		fmt.Printf("%+v\n", dep.ArtifactId)
+	for _, artifact := range results {
+		if len(artifact.Dependencies.Dependency) > 0 {
+			sort.Sort(ByDependency(artifact.Dependencies.Dependency))
+			for _, dep := range artifact.Dependencies.Dependency {
+				if dep.Scope == ""{
+					version := dep.Version
+					if strings.HasPrefix(version,"${") {
+						if found, versionProp := artifact.GetProperty(version); found == true {
+							version = versionProp
+						}
+					}
+					fmt.Printf("%s, %s, %s, %s\n", artifact.ArtifactId, dep.GroupId, dep.ArtifactId, version)
+				}
+			}
+		}
 	}
 
 	// close the poms channel
