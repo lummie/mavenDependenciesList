@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"strings"
 	"sort"
+	"flag"
 )
 
 
@@ -84,8 +85,13 @@ func (s ByDependency) Less(i, j int) bool {
 
 // main
 func main() {
-
 	runtime.GOMAXPROCS(runtime.GOMAXPROCS(0))
+
+	flag.Parse()
+	if len(flag.Args()) != 1 {
+		fmt.Println("USAGE: mavenDependencyList [searchPath] ")
+		os.Exit(1)
+	}
 
 	// array to collect results
 	results := make([]*util.Pom,0)
@@ -94,7 +100,8 @@ func main() {
 	quit := make(chan bool)
 
 	// start scanner
-	go PomScanner("/home/I049472/connected-goods", quit)
+	target := flag.Arg(0)
+	go PomScanner(target, quit)
 
 	for {
 		var quitting bool = false
